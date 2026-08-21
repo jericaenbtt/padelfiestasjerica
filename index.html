@@ -407,7 +407,7 @@ const grupos = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
 
       contador.textContent = `${equipos.length} / 16 Equipos`;
 
-      grid.innerHTML = equipos.map(eq => {
+grid.innerHTML = equipos.map(eq => {
         const botonEditar = esAdmin 
           ? `<button onclick="event.stopPropagation(); editarEquipo(${eq.id}, '${eq.nombre}')" class="mt-2 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded font-bold transition">✏️ Editar</button>` 
           : '';
@@ -417,8 +417,19 @@ const grupos = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
           ? `<img src="${eq.logo}" class="w-12 h-12 rounded-full object-cover border border-amber-500 mb-2" />`
           : `<div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">${eq.nombre.substring(0, 2).toUpperCase()}</div>`;
 
+        // Colores de fondo según el grupo
+        const bgGrupos = {
+          1: 'bg-slate-800 hover:bg-slate-700/80 border-slate-700',
+          2: 'bg-yellow-950/40 hover:bg-yellow-900/50 border-yellow-700/50',
+          3: 'bg-slate-900/90 hover:bg-slate-800 border-cyan-800/60',
+          4: 'bg-orange-950/40 hover:bg-orange-900/50 border-orange-700/50'
+        };
+
+        const numGrupo = parseInt(eq.grupo) || 1;
+        const claseFondo = bgGrupos[numGrupo] || bgGrupos[1];
+
         return `
-          <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="bg-slate-800 hover:bg-slate-700/80 cursor-pointer p-4 rounded-xl border border-slate-700 transition flex flex-col justify-between items-center text-center shadow-md">
+          <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="${claseFondo} cursor-pointer p-4 rounded-xl border transition flex flex-col justify-between items-center text-center shadow-md">
             ${avatar}
             <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
             <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded">Grupo ${eq.grupo}</span>
