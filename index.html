@@ -286,6 +286,24 @@
       }
     }
 
+
+// Eliminar inscrito de Supabase
+    async function eliminarInscrito(id) {
+      if (!esAdmin) return;
+
+      const confirmacion = confirm("¿Estás seguro de que deseas eliminar este inscrito?");
+      if (!confirmacion) return;
+
+      const { error } = await db.from('pf_inscritos').delete().eq('id', id);
+
+      if (error) {
+        alert("Error al eliminar inscrito: " + error.message);
+      } else {
+        cargarInscritos();
+      }
+    }
+
+  
     // Lógica de Sorteo transfiriendo Nombre e Imagen
     async function ejecutarSorteoEquipos() {
       if (!esAdmin) return;
