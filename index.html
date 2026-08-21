@@ -172,58 +172,65 @@
     }
 
 // --- FUNCIÓN PARA EDITAR EQUIPO (NOMBRE E IMAGEN) ---
-    function editarEquipo(id, nombreActual) {
-      // 1. Preguntamos si quiere cambiar la foto/escudo
-      const cambiarFoto = confirm("¿Quieres cambiar o subir el escudo/foto del equipo " + nombreActual + "?\n\n(Acepta para abrir la cámara/galería, o Cancela para mantener solo el cambio de nombre)");
+    async function editarEquipo(id, nombreActual) {
+      // 1. Pedimos primero el nombre (así el prompt no se bloquea en PC)
+      const nuevoNombre = prompt("Nombre del equipo:", nombreActual);
+      if (nuevoNombre === null || nuevoNombre.trim() === "") return; // Si cancela, salimos
 
-      if (cambiarFoto) {
-        // Selector de imagen
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
+      // 2. Preguntamos si quiere cambiar o subir foto
+      const cambiarFoto = confirm("¿Quieres cambiar o tomar una foto para el equipo?");
 
-        fileInput.onchange = e => {
-          const file = e.target.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = readerEvent => {
-              const img = new Image();
-              img.onload = () => {
-                // Compresión de la imagen para optimizar la base de datos
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 200;
-                const scaleFactor = MAX_WIDTH / img.width;
-                canvas.width = MAX_WIDTH;
-                canvas.height = img.height * scaleFactor;
-
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
-
-                // Pedimos el nombre y guardamos con la nueva foto
-                pedirNombreYGuardarEquipo(id, nombreActual, fotoComprimida);
-              };
-              img.src = readerEvent.target.result;
-            };
-            reader.readAsDataURL(file);
-          } else {
-            pedirNombreYGuardarEquipo(id, nombreActual, null);
-          }
-        };
-        fileInput.click();
-      } else {
-        // Si no quiere cambiar la foto, pedimos solo el nombre
-        pedirNombreYGuardarEquipo(id, nombreActual, null);
+      if (!cambiarFoto) {
+        // Guardamos solo el cambio de nombre
+        guardarEnSupabase(id, nuevoNombre.trim(), null);
+        return;
       }
+
+      // 3. Crear el selector con acceso a CÁMARA y GALERÍA
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      // Mantiene la compatibilidad para elegir foto o abrir la cámara directamente
+      fileInput.setAttribute('capture', 'environment'); 
+
+      fileInput.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) {
+          guardarEnSupabase(id, nuevoNombre.trim(), null);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = readerEvent => {
+          const img = new Image();
+          img.onload = () => {
+            // Compresión de la imagen (máximo 200px)
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 200;
+            const scaleFactor = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleFactor;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
+
+            // Guardamos nombre y foto
+            guardarEnSupabase(id, nuevoNombre.trim(), fotoComprimida);
+          };
+          img.src = readerEvent.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      fileInput.click();
     }
 
-    async function pedirNombreYGuardarEquipo(id, nombreActual, nuevaFoto) {
-      const nuevoNombre = prompt("Nombre del equipo:", nombreActual);
-      if (nuevoNombre === null || nuevoNombre.trim() === "") return; // Cancelado
-
-      const datosAActualizar = { nombre: nuevoNombre.trim() };
-      if (nuevaFoto) {
-        datosAActualizar.logo = nuevaFoto; // O la columna que uses para la foto en Supabase
+    // --- FUNCIÓN AUXILIAR DE GUARDADO ---
+    async function guardarEnSupabase(id, nombre, foto) {
+      const datosAActualizar = { nombre: nombre };
+      if (foto) {
+        datosAActualizar.logo = foto;
       }
 
       const { error } = await db
@@ -232,10 +239,10 @@
         .eq('id', id);
 
       if (error) {
-        alert("Error al actualizar el equipo: " + error.message);
+        alert("Error al actualizar en Supabase: " + error.message);
       } else {
         alert("¡Equipo actualizado correctamente!");
-        cargarEquipos();
+        cargarEquipos(); // Refresca las tarjetas
       }
     }
 
