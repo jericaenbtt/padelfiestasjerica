@@ -131,6 +131,7 @@
     }
 
     // --- CARGAR Y DIBUJAR EQUIPOS ---
+// --- CARGAR Y DIBUJAR EQUIPOS ---
     async function cargarEquipos() {
       const grid = document.getElementById('grid-equipos');
       const contador = document.getElementById('contador-equipos');
@@ -153,16 +154,18 @@
       contador.textContent = `${equipos.length} / 16 Equipos`;
 
       grid.innerHTML = equipos.map(eq => {
-        // Genera botón de edición si el modo Admin está activo
         const botonEditar = esAdmin 
-          ? `<button onclick="event.stopPropagation(); editarEquipo(${eq.id}, '${eq.nombre}')" class="mt-2 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded font-bold transition">✏️ Editar Nombre</button>` 
+          ? `<button onclick="event.stopPropagation(); editarEquipo(${eq.id}, '${eq.nombre}')" class="mt-2 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded font-bold transition">✏️ Editar</button>` 
           : '';
+
+        // Si el equipo tiene foto guardada en la columna 'logo' la dibuja; si no, muestra sus iniciales
+        const avatar = eq.logo 
+          ? `<img src="${eq.logo}" class="w-12 h-12 rounded-full object-cover border border-amber-500 mb-2" />`
+          : `<div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">${eq.nombre.substring(0, 2).toUpperCase()}</div>`;
 
         return `
           <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="bg-slate-800 hover:bg-slate-700/80 cursor-pointer p-4 rounded-xl border border-slate-700 transition flex flex-col justify-between items-center text-center shadow-md">
-            <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">
-              ${eq.nombre.substring(0, 2).toUpperCase()}
-            </div>
+            ${avatar}
             <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
             <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded">Grupo ${eq.grupo}</span>
             ${botonEditar}
@@ -173,25 +176,22 @@
 
 // --- FUNCIÓN PARA EDITAR EQUIPO (NOMBRE E IMAGEN) ---
     async function editarEquipo(id, nombreActual) {
-      // 1. Pedimos primero el nombre (así el prompt no se bloquea en PC)
+      // 1. Pedimos el nombre
       const nuevoNombre = prompt("Nombre del equipo:", nombreActual);
-      if (nuevoNombre === null || nuevoNombre.trim() === "") return; // Si cancela, salimos
+      if (nuevoNombre === null || nuevoNombre.trim() === "") return;
 
-      // 2. Preguntamos si quiere cambiar o subir foto
-      const cambiarFoto = confirm("¿Quieres cambiar o tomar una foto para el equipo?");
+      // 2. Preguntamos si desea añadir/cambiar foto
+      const cambiarFoto = confirm("¿Quieres cambiar o subir la foto/escudo del equipo?");
 
       if (!cambiarFoto) {
-        // Guardamos solo el cambio de nombre
         guardarEnSupabase(id, nuevoNombre.trim(), null);
         return;
       }
 
-      // 3. Crear el selector con acceso a CÁMARA y GALERÍA
+      // 3. Selector universal (Abre fotos/galería/archivos en PC y Móvil)
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
-      fileInput.accept = 'image/*';
-      // Mantiene la compatibilidad para elegir foto o abrir la cámara directamente
-      fileInput.setAttribute('capture', 'environment'); 
+      fileInput.accept = 'image/*'; // Sin 'capture' para permitir elegir origen
 
       fileInput.onchange = e => {
         const file = e.target.files[0];
@@ -204,7 +204,7 @@
         reader.onload = readerEvent => {
           const img = new Image();
           img.onload = () => {
-            // Compresión de la imagen (máximo 200px)
+            // Compresión a máximo 200px
             const canvas = document.createElement('canvas');
             const MAX_WIDTH = 200;
             const scaleFactor = MAX_WIDTH / img.width;
@@ -215,7 +215,6 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
 
-            // Guardamos nombre y foto
             guardarEnSupabase(id, nuevoNombre.trim(), fotoComprimida);
           };
           img.src = readerEvent.target.result;
@@ -226,11 +225,11 @@
       fileInput.click();
     }
 
-    // --- FUNCIÓN AUXILIAR DE GUARDADO ---
+    // --- FUNCIÓN AUXILIAR DE GUARDADO EN SUPABASE ---
     async function guardarEnSupabase(id, nombre, foto) {
       const datosAActualizar = { nombre: nombre };
       if (foto) {
-        datosAActualizar.logo = foto;
+        datosAActualizar.logo = foto; // Guarda en la columna 'logo' recién creada
       }
 
       const { error } = await db
@@ -242,7 +241,7 @@
         alert("Error al actualizar en Supabase: " + error.message);
       } else {
         alert("¡Equipo actualizado correctamente!");
-        cargarEquipos(); // Refresca las tarjetas
+        cargarEquipos();
       }
     }
 
