@@ -329,7 +329,11 @@
         [parejasMezcladas[i], parejasMezcladas[j]] = [parejasMezcladas[j], parejasMezcladas[i]];
       }
 
-      const grupos = ['A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D'];
+     // En lugar de:
+
+
+// Cambiarlo por números enteros:
+const grupos = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4];
 
       // 2. Preparamos el array de los 16 nuevos equipos
       const nuevosEquipos = parejasMezcladas.map((pareja, index) => ({
