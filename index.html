@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PÁDEL FIESTAS JÉRICA</title>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .active-tab { border-bottom: 4px solid #f59e0b; color: #f59e0b; font-weight: bold; }
+  </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col">
+
+  <!-- HEADER -->
+  <header class="bg-slate-800 border-b border-slate-700 p-4 text-center sticky top-0 z-10 shadow-lg">
+    <h1 class="text-2xl font-black tracking-wider text-amber-500">PÁDEL FIESTAS JÉRICA</h1>
+    <p class="text-xs text-slate-400 mt-1">Torneo de 16 Equipos</p>
+  </header>
+
+  <!-- NAVEGACIÓN -->
+  <nav class="flex justify-around bg-slate-800/80 backdrop-blur border-b border-slate-700 text-sm">
+    <button onclick="switchTab('equipos')" id="tab-equipos" class="p-3 flex-1 text-center active-tab">Equipos</button>
+    <button onclick="switchTab('grupos')" id="tab-grupos" class="p-3 flex-1 text-center text-slate-400">Grupos</button>
+    <button onclick="switchTab('playoffs')" id="tab-playoffs" class="p-3 flex-1 text-center text-slate-400">Cuadro Final</button>
+    <button onclick="switchTab('admin')" id="tab-admin" class="p-3 flex-1 text-center text-slate-400 text-xs">⚙️ Admin</button>
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="p-4 max-w-4xl mx-auto w-full flex-grow">
+
+    <!-- SECCIÓN EQUIPOS -->
+    <section id="sec-equipos" class="space-y-4">
+      <h2 class="text-xl font-bold text-amber-400 mb-2">Equipos Participantes</h2>
+      <div id="grid-equipos" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <!-- Se cargan dinámicamente -->
+        <p class="col-span-full text-slate-500 text-center py-4">Cargando equipos...</p>
+      </div>
+    </section>
+
+    <!-- SECCIÓN GRUPOS -->
+    <section id="sec-grupos" class="hidden space-y-6">
+      <h2 class="text-xl font-bold text-amber-400">Fase de Grupos</h2>
+      <div id="contenedor-grupos" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Se cargan dinámicamente -->
+      </div>
+    </section>
+
+    <!-- SECCIÓN PLAYOFFS -->
+    <section id="sec-playoffs" class="hidden space-y-4">
+      <h2 class="text-xl font-bold text-amber-400">Cuadro de Eliminatorias</h2>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
+        <h3 class="text-lg font-semibold text-amber-300">Cuartos de Final</h3>
+        <div class="space-y-2 text-sm">
+          <div class="bg-slate-700/50 p-2 rounded flex justify-between"><span>1º Grupo 1 vs 2º Grupo 2</span><span class="text-slate-400">Pendiente</span></div>
+          <div class="bg-slate-700/50 p-2 rounded flex justify-between"><span>1º Grupo 3 vs 2º Grupo 4</span><span class="text-slate-400">Pendiente</span></div>
+          <div class="bg-slate-700/50 p-2 rounded flex justify-between"><span>1º Grupo 2 vs 2º Grupo 1</span><span class="text-slate-400">Pendiente</span></div>
+          <div class="bg-slate-700/50 p-2 rounded flex justify-between"><span>1º Grupo 4 vs 2º Grupo 3</span><span class="text-slate-400">Pendiente</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN ADMIN -->
+    <section id="sec-admin" class="hidden space-y-4">
+      <h2 class="text-xl font-bold text-red-400">Panel de Administración</h2>
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
+        <input type="password" id="admin-pass" placeholder="Contraseña de administrador" class="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white" />
+        <button onclick="loginAdmin()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded">Acceder</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL PARTIDOS EQUIPO -->
+  <div id="modal-equipo" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-md w-full space-y-4">
+      <h3 id="modal-titulo" class="text-xl font-bold text-amber-400"></h3>
+      <div id="modal-partidos" class="space-y-2 text-sm max-h-60 overflow-y-auto"></div>
+      <button onclick="cerrarModal()" class="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded font-bold">Cerrar</button>
+    </div>
+  </div>
+
+  <script>
+    // Configuración de Supabase
+    const SUPABASE_URL = "https://juqzbczzhwgcmtmtbxcf.supabase.co";
+    const SUPABASE_KEY = "Padel77";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Navegación de Pestañas
+    function switchTab(tab) {
+      ['equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
+        document.getElementById(`sec-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`).classList.remove('active-tab');
+        document.getElementById(`tab-${t}`).classList.add('text-slate-400');
+      });
+      document.getElementById(`sec-${tab}`).classList.remove('hidden');
+      document.getElementById(`tab-${tab}`).classList.add('active-tab');
+      document.getElementById(`tab-${tab}`).classList.remove('text-slate-400');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modal-equipo').classList.add('hidden');
+      document.getElementById('modal-equipo').classList.remove('flex');
+    }
+  </script>
+</body>
+</html>
