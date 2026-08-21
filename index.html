@@ -307,6 +307,7 @@
 
   
     // Lógica de Sorteo transfiriendo Nombre e Imagen
+  // Lógica de Sorteo con Reemplazo Limpio (DELETE + INSERT)
     async function ejecutarSorteoEquipos() {
       if (!esAdmin) return;
 
@@ -318,13 +319,11 @@
       const confirmacion1 = confirm("¿Estás seguro de que deseas realizar el sorteo de equipos?");
       if (!confirmacion1) return;
 
-      const confirmacion2 = confirm("⚠️ ATENCIÓN: Esta acción reemplazará los 16 equipos actuales (nombres y fotos). ¿Deseas proceder?");
+      const confirmacion2 = confirm("⚠️ ATENCIÓN: Esta acción reemplazará los 16 equipos actuales. ¿Deseas proceder?");
       if (!confirmacion2) return;
 
-      // Copia de los objetos completos (contienen nombre y logo)
+      // 1. Mezcla aleatoria Fisher-Yates
       let parejasMezcladas = [...inscritosLocales];
-      
-      // Mezcla aleatoria Fisher-Yates
       for (let i = parejasMezcladas.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [parejasMezcladas[i], parejasMezcladas[j]] = [parejasMezcladas[j], parejasMezcladas[i]];
@@ -332,17 +331,31 @@
 
       const grupos = ['A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D'];
 
-      // Asignación de Nombre + Logo + Grupo a los 16 equipos
-      for (let i = 0; i < 16; i++) {
-        const idEquipo = i + 1;
-        await db.from('pf_equipos').update({
-          nombre: parejasMezcladas[i].nombre,
-          logo: parejasMezcladas[i].logo || null,
-          grupo: grupos[i]
-        }).eq('id', idEquipo);
+      // 2. Preparamos el array de los 16 nuevos equipos
+      const nuevosEquipos = parejasMezcladas.map((pareja, index) => ({
+        nombre: pareja.nombre,
+        logo: pareja.logo || null,
+        grupo: grupos[index]
+      }));
+
+      // 3. Borramos los registros anteriores para evitar conflictos de ID
+      const { error: errorDelete } = await db.from('pf_equipos').delete().neq('id', -1);
+
+      if (errorDelete) {
+        alert("Error al vaciar equipos anteriores: " + errorDelete.message);
+        return;
       }
 
-      alert("🎉 ¡Sorteo realizado con éxito! La pestaña 'Equipos' ha recibido los nombres y sus fotos correspondientes.");
+      // 4. Insertamos los 16 equipos sorteados
+      const { error: errorInsert } = await db.from('pf_equipos').insert(nuevosEquipos);
+
+      if (errorInsert) {
+        alert("Error al guardar los nuevos equipos: " + errorInsert.message);
+        return;
+      }
+
+      alert("🎉 ¡Sorteo realizado con éxito! La pestaña 'Equipos' ha sido actualizada.");
+      cargarEquipos();
       switchTab('equipos');
     }
     // Validación de Administrador
