@@ -171,22 +171,71 @@
       }).join('');
     }
 
-    // --- FUNCIÓN PARA EDITAR EQUIPO EN SUPABASE ---
-    async function editarEquipo(id, nombreActual) {
-      const nuevoNombre = prompt("Introduce el nuevo nombre para este equipo:", nombreActual);
-      
-      if (!nuevoNombre || nuevoNombre.trim() === "" || nuevoNombre === nombreActual) return;
+// --- FUNCIÓN PARA EDITAR EQUIPO (NOMBRE E IMAGEN) ---
+    function editarEquipo(id, nombreActual) {
+      // 1. Preguntamos si quiere cambiar la foto/escudo
+      const cambiarFoto = confirm("¿Quieres cambiar o subir el escudo/foto del equipo " + nombreActual + "?\n\n(Acepta para abrir la cámara/galería, o Cancela para mantener solo el cambio de nombre)");
+
+      if (cambiarFoto) {
+        // Selector de imagen
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+
+        fileInput.onchange = e => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = readerEvent => {
+              const img = new Image();
+              img.onload = () => {
+                // Compresión de la imagen para optimizar la base de datos
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 200;
+                const scaleFactor = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scaleFactor;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
+
+                // Pedimos el nombre y guardamos con la nueva foto
+                pedirNombreYGuardarEquipo(id, nombreActual, fotoComprimida);
+              };
+              img.src = readerEvent.target.result;
+            };
+            reader.readAsDataURL(file);
+          } else {
+            pedirNombreYGuardarEquipo(id, nombreActual, null);
+          }
+        };
+        fileInput.click();
+      } else {
+        // Si no quiere cambiar la foto, pedimos solo el nombre
+        pedirNombreYGuardarEquipo(id, nombreActual, null);
+      }
+    }
+
+    async function pedirNombreYGuardarEquipo(id, nombreActual, nuevaFoto) {
+      const nuevoNombre = prompt("Nombre del equipo:", nombreActual);
+      if (nuevoNombre === null || nuevoNombre.trim() === "") return; // Cancelado
+
+      const datosAActualizar = { nombre: nuevoNombre.trim() };
+      if (nuevaFoto) {
+        datosAActualizar.logo = nuevaFoto; // O la columna que uses para la foto en Supabase
+      }
 
       const { error } = await db
         .from('pf_equipos')
-        .update({ nombre: nuevoNombre.trim() })
+        .update(datosAActualizar)
         .eq('id', id);
 
       if (error) {
         alert("Error al actualizar el equipo: " + error.message);
       } else {
-        alert("¡Nombre de equipo actualizado con éxito!");
-        cargarEquipos(); // Refrescar tarjetas en la interfaz
+        alert("¡Equipo actualizado correctamente!");
+        cargarEquipos();
       }
     }
 
