@@ -33,10 +33,13 @@
 
     <!-- SECCIÓN EQUIPOS -->
     <section id="sec-equipos" class="space-y-4">
-      <h2 class="text-xl font-bold text-amber-400 mb-2">Equipos Participantes</h2>
-      <div id="grid-equipos" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <!-- Se cargan dinámicamente -->
-        <p class="col-span-full text-slate-500 text-center py-4">Cargando equipos...</p>
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-xl font-bold text-amber-400">Equipos Participantes</h2>
+        <span id="contador-equipos" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">0 / 16 Equipos</span>
+      </div>
+      
+      <div id="grid-equipos" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        <p class="col-span-full text-slate-500 text-center py-4">Cargando equipos desde la base de datos...</p>
       </div>
     </section>
 
@@ -44,7 +47,7 @@
     <section id="sec-grupos" class="hidden space-y-6">
       <h2 class="text-xl font-bold text-amber-400">Fase de Grupos</h2>
       <div id="contenedor-grupos" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Se cargan dinámicamente -->
+        <p class="col-span-full text-slate-500 text-center py-4">Cargando clasificaciones...</p>
       </div>
     </section>
 
@@ -101,9 +104,86 @@
     }
 
     function cerrarModal() {
-      document.getElementById('modal-equipo').classList.add('hidden');
-      document.getElementById('modal-equipo').classList.remove('flex');
+      const modal = document.getElementById('modal-equipo');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
     }
+
+    // --- CARGAR EQUIPOS DESDE SUPABASE ---
+    async function cargarEquipos() {
+      const grid = document.getElementById('grid-equipos');
+      const contador = document.getElementById('contador-equipos');
+
+      const { data: equipos, error } = await db
+        .from('pf_equipos')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) {
+        grid.innerHTML = `<p class="col-span-full text-red-400 text-center py-4">Error al cargar equipos: ${error.message}</p>`;
+        return;
+      }
+
+      if (!equipos || equipos.length === 0) {
+        grid.innerHTML = `<p class="col-span-full text-slate-400 text-center py-4">No hay equipos registrados aún.</p>`;
+        return;
+      }
+
+      contador.textContent = `${equipos.length} / 16 Equipos`;
+
+      grid.innerHTML = equipos.map(eq => `
+        <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="bg-slate-800 hover:bg-slate-700/80 cursor-pointer p-4 rounded-xl border border-slate-700 transition flex flex-col justify-between items-center text-center shadow-md">
+          <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">
+            ${eq.nombre.substring(0, 2).toUpperCase()}
+          </div>
+          <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
+          <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded">Grupo ${eq.grupo}</span>
+        </div>
+      `).join('');
+    }
+
+    // Modal de partidos por equipo
+    async function verPartidosEquipo(equipoId, nombreEquipo) {
+      const modal = document.getElementById('modal-equipo');
+      const titulo = document.getElementById('modal-titulo');
+      const contenedorPartidos = document.getElementById('modal-partidos');
+
+      titulo.textContent = `Partidos de ${nombreEquipo}`;
+      contenedorPartidos.innerHTML = `<p class="text-slate-400">Buscando partidos...</p>`;
+      
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      // Buscar partidos del equipo
+      const { data: partidos, error } = await db
+        .from('pf_partidos')
+        .select('*, equipo1:equipo1_id(nombre), equipo2:equipo2_id(nombre)')
+        .or(`equipo1_id.eq.${equipoId},equipo2_id.eq.${equipoId}`);
+
+      if (error || !partidos || partidos.length === 0) {
+        contenedorPartidos.innerHTML = `<p class="text-slate-400 py-2">No hay partidos asignados todavía.</p>`;
+        return;
+      }
+
+      contenedorPartidos.innerHTML = partidos.map(p => `
+        <div class="bg-slate-700/50 p-3 rounded flex justify-between items-center">
+          <div>
+            <p class="font-semibold text-xs text-slate-300 mb-1">${p.equipo1?.nombre} vs ${p.equipo2?.nombre}</p>
+            <span class="text-[10px] text-slate-400 capitalize">${p.fase} ${p.grupo ? '- Gr. ' + p.grupo : ''}</span>
+          </div>
+          <div>
+            ${p.completado 
+              ? `<span class="bg-amber-500/20 text-amber-400 font-bold px-2 py-1 rounded text-xs">${p.resultado_e1} - ${p.resultado_e2}</span>` 
+              : `<span class="text-slate-400 text-xs">Pendiente</span>`}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Inicializar al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      cargarEquipos();
+    });
   </script>
 </body>
 </html>
