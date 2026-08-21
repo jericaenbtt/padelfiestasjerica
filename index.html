@@ -67,10 +67,19 @@
       </div>
 
       <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
-        <!-- Input para añadir inscritos libremente -->
-        <div id="form-nuevo-inscrito" class="flex gap-2">
-          <input type="text" id="nombre-inscrito-input" placeholder="Nombre de la pareja o jugador" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
-          <button onclick="agregarInscrito()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded text-sm transition">Añadir</button>
+        <!-- Formulario EXCLUSIVO de Administración -->
+        <div id="form-nuevo-inscrito" class="hidden space-y-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/60">
+          <p class="text-xs font-bold text-amber-400">➕ Inscribir Nuevo Equipo (Solo Admin)</p>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input type="text" id="nombre-inscrito-input" placeholder="Nombre de la pareja o equipo" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+            <input type="file" id="foto-inscrito-input" accept="image/*" class="text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-500">
+            <button onclick="agregarInscrito()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded text-sm transition">Inscribir</button>
+          </div>
+        </div>
+
+        <!-- Mensaje para usuarios normales cuando no son admin -->
+        <div id="msg-publico-inscritos" class="text-xs text-slate-400 italic text-center py-1">
+          La inscripción de equipos está gestionada exclusivamente por la organización.
         </div>
 
         <ul id="lista-inscritos" class="divide-y divide-slate-700/50 text-sm">
@@ -167,17 +176,23 @@
 
     let inscritosLocales = [];
 
-    // Cargar inscritos desde la tabla 'pf_inscritos' o estado local
+  // Cargar inscritos desde Supabase
     async function cargarInscritos() {
       const lista = document.getElementById('lista-inscritos');
       const contador = document.getElementById('contador-inscritos');
+      const formInscrito = document.getElementById('form-nuevo-inscrito');
+      const msgPublico = document.getElementById('msg-publico-inscritos');
       const botonSorteo = document.getElementById('contenedor-boton-sorteo');
 
-      // Mostrar botón de sorteo solo si es admin
+      // Control de visibilidad según estado Admin
       if (esAdmin) {
+        formInscrito.classList.remove('hidden');
         botonSorteo.classList.remove('hidden');
+        msgPublico.classList.add('hidden');
       } else {
+        formInscrito.classList.add('hidden');
         botonSorteo.classList.add('hidden');
+        msgPublico.classList.remove('hidden');
       }
 
       const { data, error } = await db.from('pf_inscritos').select('*').order('id', { ascending: true });
@@ -191,79 +206,123 @@
       contador.textContent = `${inscritosLocales.length} / 16 Inscritos`;
 
       if (inscritosLocales.length === 0) {
-        lista.innerHTML = `<li class="py-2 text-slate-400 text-center">No hay inscritos aún.</li>`;
+        lista.innerHTML = `<li class="py-2 text-slate-400 text-center">No hay equipos inscritos aún.</li>`;
         return;
       }
 
-      lista.innerHTML = inscritosLocales.map((item, index) => `
-        <li class="py-2 flex justify-between items-center">
-          <span class="text-white">${index + 1}. ${item.nombre}</span>
-          ${esAdmin ? `<button onclick="eliminarInscrito(${item.id})" class="text-xs text-red-400 hover:text-red-300">❌ Eliminar</button>` : ''}
-        </li>
-      `).join('');
+      lista.innerHTML = inscritosLocales.map((item, index) => {
+        const avatar = item.logo 
+          ? `<img src="${item.logo}" class="w-8 h-8 rounded-full object-cover border border-amber-500/50" />`
+          : `<div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-xs">${item.nombre.substring(0, 2).toUpperCase()}</div>`;
+
+        return `
+          <li class="py-2 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-slate-400 font-mono w-4">${index + 1}.</span>
+              ${avatar}
+              <span class="text-white font-medium">${item.nombre}</span>
+            </div>
+            ${esAdmin ? `<button onclick="eliminarInscrito(${item.id})" class="text-xs text-red-400 hover:text-red-300">❌ Eliminar</button>` : ''}
+          </li>
+        `;
+      }).join('');
     }
 
+    // Inscribir equipo con compresión de foto
     async function agregarInscrito() {
-      const input = document.getElementById('nombre-inscrito-input');
-      const nombre = input.value.trim();
+      if (!esAdmin) return;
 
-      if (!nombre) return;
+      const inputNombre = document.getElementById('nombre-inscrito-input');
+      const inputFoto = document.getElementById('foto-inscrito-input');
+      const nombre = inputNombre.value.trim();
+
+      if (!nombre) {
+        alert("Introduce un nombre para el equipo.");
+        return;
+      }
 
       if (inscritosLocales.length >= 16) {
         alert("Ya se ha alcanzado el límite máximo de 16 inscritos.");
         return;
       }
 
-      const { error } = await db.from('pf_inscritos').insert([{ nombre: nombre }]);
+      const file = inputFoto.files[0];
+
+      if (file) {
+        // Comprimir imagen antes de subir
+        const reader = new FileReader();
+        reader.onload = readerEvent => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 200;
+            const scaleFactor = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleFactor;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
+
+            guardarInscritoEnSupabase(nombre, fotoComprimida);
+          };
+          img.src = readerEvent.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        guardarInscritoEnSupabase(nombre, null);
+      }
+    }
+
+    async function guardarInscritoEnSupabase(nombre, foto) {
+      const { error } = await db.from('pf_inscritos').insert([{ nombre: nombre, logo: foto }]);
 
       if (error) {
         alert("Error al registrar inscrito: " + error.message);
       } else {
-        input.value = '';
+        document.getElementById('nombre-inscrito-input').value = '';
+        document.getElementById('foto-inscrito-input').value = '';
         cargarInscritos();
       }
     }
 
-    async function eliminarInscrito(id) {
-      const { error } = await db.from('pf_inscritos').delete().eq('id', id);
-      if (!error) cargarInscritos();
-    }
-
-    // LÓGICA DEL SORTEO AUTOMÁTICO
+    // Lógica de Sorteo transfiriendo Nombre e Imagen
     async function ejecutarSorteoEquipos() {
-      // 1. Verificación de cantidad exacta
+      if (!esAdmin) return;
+
       if (inscritosLocales.length !== 16) {
         alert(`❌ ERROR: Se requieren exactamente 16 inscritos para realizar el sorteo. Actualmente hay ${inscritosLocales.length}.`);
         return;
       }
 
-      // 2. Primera confirmación
       const confirmacion1 = confirm("¿Estás seguro de que deseas realizar el sorteo de equipos?");
       if (!confirmacion1) return;
 
-      // 3. Segunda confirmación
-      const confirmacion2 = confirm("⚠️ ATENCIÓN: Esta acción reemplazará todos los equipos asignados en la pestaña 'Equipos'. ¿Deseas proceder con el sorteo definitivo?");
+      const confirmacion2 = confirm("⚠️ ATENCIÓN: Esta acción reemplazará los 16 equipos actuales (nombres y fotos). ¿Deseas proceder?");
       if (!confirmacion2) return;
 
-      // 4. Mezcla aleatoria (Algoritmo Fisher-Yates)
-      let nombresMezclados = inscritosLocales.map(i => i.nombre);
-      for (let i = nombresMezclados.length - 1; i > 0; i--) {
+      // Copia de los objetos completos (contienen nombre y logo)
+      let parejasMezcladas = [...inscritosLocales];
+      
+      // Mezcla aleatoria Fisher-Yates
+      for (let i = parejasMezcladas.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [nombresMezclados[i], nombresMezclados[j]] = [nombresMezclados[j], nombresMezclados[i]];
+        [parejasMezcladas[i], parejasMezcladas[j]] = [parejasMezcladas[j], parejasMezcladas[i]];
       }
 
-      // 5. Asignación a los 16 IDs de equipos con sus grupos (A, B, C, D)
       const grupos = ['A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D'];
 
+      // Asignación de Nombre + Logo + Grupo a los 16 equipos
       for (let i = 0; i < 16; i++) {
         const idEquipo = i + 1;
         await db.from('pf_equipos').update({
-          nombre: nombresMezclados[i],
+          nombre: parejasMezcladas[i].nombre,
+          logo: parejasMezcladas[i].logo || null,
           grupo: grupos[i]
         }).eq('id', idEquipo);
       }
 
-      alert("🎉 ¡Sorteo realizado con éxito! La pestaña 'Equipos' ha sido actualizada.");
+      alert("🎉 ¡Sorteo realizado con éxito! La pestaña 'Equipos' ha recibido los nombres y sus fotos correspondientes.");
       switchTab('equipos');
     }
     // Validación de Administrador
