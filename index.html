@@ -21,15 +21,42 @@
   </header>
 
   <!-- NAVEGACIÓN -->
-  <nav class="flex justify-around bg-slate-800/80 backdrop-blur border-b border-slate-700 text-sm">
-    <button onclick="switchTab('equipos')" id="tab-equipos" class="p-3 flex-1 text-center active-tab">Equipos</button>
-    <button onclick="switchTab('grupos')" id="tab-grupos" class="p-3 flex-1 text-center text-slate-400">Grupos</button>
-    <button onclick="switchTab('playoffs')" id="tab-playoffs" class="p-3 flex-1 text-center text-slate-400">Cuadro Final</button>
-    <button onclick="switchTab('admin')" id="tab-admin" class="p-3 flex-1 text-center text-slate-400 text-xs">⚙️ Admin</button>
+  <!-- NAVEGACIÓN -->
+  <nav class="flex justify-around bg-slate-800/80 backdrop-blur border-b border-slate-700 text-sm overflow-x-auto">
+    <button onclick="switchTab('info')" id="tab-info" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">ℹ️ Info</button>
+    <button onclick="switchTab('equipos')" id="tab-equipos" class="p-3 flex-1 text-center active-tab whitespace-nowrap">Equipos</button>
+    <button onclick="switchTab('grupos')" id="tab-grupos" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">Grupos</button>
+    <button onclick="switchTab('playoffs')" id="tab-playoffs" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">Cuadro Final</button>
+    <button onclick="switchTab('admin')" id="tab-admin" class="p-3 flex-1 text-center text-slate-400 text-xs whitespace-nowrap">⚙️ Admin</button>
   </nav>
 
   <!-- CONTENIDO PRINCIPAL -->
   <main class="p-4 max-w-4xl mx-auto w-full flex-grow">
+
+    <!-- CONTENIDO PRINCIPAL -->
+  <main class="p-4 max-w-4xl mx-auto w-full flex-grow">
+
+    <!-- SECCIÓN INFO (AQUÍ VA LO NUEVO) -->
+    <section id="sec-info" class="space-y-4">
+      <h2 class="text-xl font-bold text-amber-400">Información del Torneo</h2>
+      <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4 text-slate-200">
+        <p class="text-sm">Bienvenido a la web oficial del <strong>Torneo de Pádel Fiestas de Jérica</strong>.</p>
+        
+        <div class="border-t border-slate-700 pt-3 space-y-2">
+          <h3 class="text-amber-400 font-bold text-sm">📋 Formato y Reglas Básicas</h3>
+          <ul class="list-disc list-inside text-xs space-y-1.5 text-slate-300">
+            <li><strong>Equipos:</strong> Torneo compuesto por 16 parejas/equipos.</li>
+            <li><strong>Fase de Grupos:</strong> Divididos en grupos donde jugarán todos contra todos.</li>
+            <li><strong>Fase Final:</strong> Los mejores clasificados de cada grupo pasarán al cuadro de eliminatorias (Playoffs).</li>
+          </ul>
+        </div>
+
+        <div class="border-t border-slate-700 pt-3 space-y-2">
+          <h3 class="text-amber-400 font-bold text-sm">📍 Pistas y Ubicación</h3>
+          <p class="text-xs text-slate-300">Pistas Municipales de Pádel de Jérica.</p>
+        </div>
+      </div>
+    </section>
 
     <!-- SECCIÓN EQUIPOS -->
     <section id="sec-equipos" class="space-y-4">
@@ -97,8 +124,9 @@
     let esAdmin = false;
 
     // Navegación de Pestañas
+  // Navegación de Pestañas
     function switchTab(tab) {
-      ['equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
+      ['info', 'equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
         document.getElementById(`sec-${t}`).classList.add('hidden');
         document.getElementById(`tab-${t}`).classList.remove('active-tab');
         document.getElementById(`tab-${t}`).classList.add('text-slate-400');
@@ -107,7 +135,6 @@
       document.getElementById(`tab-${tab}`).classList.add('active-tab');
       document.getElementById(`tab-${tab}`).classList.remove('text-slate-400');
     }
-
     // Validación de Administrador
     function loginAdmin() {
       const inputPass = document.getElementById('admin-pass').value;
