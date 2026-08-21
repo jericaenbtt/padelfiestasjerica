@@ -21,9 +21,10 @@
   </header>
 
   <!-- NAVEGACIÓN -->
-  <!-- NAVEGACIÓN -->
+ <!-- NAVEGACIÓN -->
   <nav class="flex justify-around bg-slate-800/80 backdrop-blur border-b border-slate-700 text-sm overflow-x-auto">
     <button onclick="switchTab('info')" id="tab-info" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">ℹ️ Info</button>
+    <button onclick="switchTab('inscritos')" id="tab-inscritos" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">📝 Inscritos</button>
     <button onclick="switchTab('equipos')" id="tab-equipos" class="p-3 flex-1 text-center active-tab whitespace-nowrap">Equipos</button>
     <button onclick="switchTab('grupos')" id="tab-grupos" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">Grupos</button>
     <button onclick="switchTab('playoffs')" id="tab-playoffs" class="p-3 flex-1 text-center text-slate-400 whitespace-nowrap">Cuadro Final</button>
@@ -54,6 +55,31 @@
         <div class="border-t border-slate-700 pt-3 space-y-2">
           <h3 class="text-amber-400 font-bold text-sm">📍 Pistas y Ubicación</h3>
           <p class="text-xs text-slate-300">Pistas Municipales de Pádel de Jérica.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN INSCRITOS -->
+    <section id="sec-inscritos" class="hidden space-y-4">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-xl font-bold text-amber-400">Lista de Inscritos</h2>
+        <span id="contador-inscritos" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">0 / 16 Inscritos</span>
+      </div>
+
+      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
+        <!-- Input para añadir inscritos libremente -->
+        <div id="form-nuevo-inscrito" class="flex gap-2">
+          <input type="text" id="nombre-inscrito-input" placeholder="Nombre de la pareja o jugador" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+          <button onclick="agregarInscrito()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded text-sm transition">Añadir</button>
+        </div>
+
+        <ul id="lista-inscritos" class="divide-y divide-slate-700/50 text-sm">
+          <li class="py-2 text-slate-400 text-center">Cargando lista de inscritos...</li>
+        </ul>
+
+        <!-- Botón de Sorteo solo para Admin -->
+        <div id="contenedor-boton-sorteo" class="pt-2 border-t border-slate-700 hidden">
+          <button onclick="ejecutarSorteoEquipos()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg text-sm shadow-lg transition">🎲 Realizar Sorteo Automático</button>
         </div>
       </div>
     </section>
@@ -125,8 +151,9 @@
 
     // Navegación de Pestañas
   // Navegación de Pestañas
+// Actualización de switchTab
     function switchTab(tab) {
-      ['info', 'equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
+      ['info', 'inscritos', 'equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
         document.getElementById(`sec-${t}`).classList.add('hidden');
         document.getElementById(`tab-${t}`).classList.remove('active-tab');
         document.getElementById(`tab-${t}`).classList.add('text-slate-400');
@@ -134,6 +161,110 @@
       document.getElementById(`sec-${tab}`).classList.remove('hidden');
       document.getElementById(`tab-${tab}`).classList.add('active-tab');
       document.getElementById(`tab-${tab}`).classList.remove('text-slate-400');
+
+      if (tab === 'inscritos') cargarInscritos();
+    }
+
+    let inscritosLocales = [];
+
+    // Cargar inscritos desde la tabla 'pf_inscritos' o estado local
+    async function cargarInscritos() {
+      const lista = document.getElementById('lista-inscritos');
+      const contador = document.getElementById('contador-inscritos');
+      const botonSorteo = document.getElementById('contenedor-boton-sorteo');
+
+      // Mostrar botón de sorteo solo si es admin
+      if (esAdmin) {
+        botonSorteo.classList.remove('hidden');
+      } else {
+        botonSorteo.classList.add('hidden');
+      }
+
+      const { data, error } = await db.from('pf_inscritos').select('*').order('id', { ascending: true });
+
+      if (error) {
+        lista.innerHTML = `<li class="py-2 text-red-400 text-center">Error al cargar inscritos</li>`;
+        return;
+      }
+
+      inscritosLocales = data || [];
+      contador.textContent = `${inscritosLocales.length} / 16 Inscritos`;
+
+      if (inscritosLocales.length === 0) {
+        lista.innerHTML = `<li class="py-2 text-slate-400 text-center">No hay inscritos aún.</li>`;
+        return;
+      }
+
+      lista.innerHTML = inscritosLocales.map((item, index) => `
+        <li class="py-2 flex justify-between items-center">
+          <span class="text-white">${index + 1}. ${item.nombre}</span>
+          ${esAdmin ? `<button onclick="eliminarInscrito(${item.id})" class="text-xs text-red-400 hover:text-red-300">❌ Eliminar</button>` : ''}
+        </li>
+      `).join('');
+    }
+
+    async function agregarInscrito() {
+      const input = document.getElementById('nombre-inscrito-input');
+      const nombre = input.value.trim();
+
+      if (!nombre) return;
+
+      if (inscritosLocales.length >= 16) {
+        alert("Ya se ha alcanzado el límite máximo de 16 inscritos.");
+        return;
+      }
+
+      const { error } = await db.from('pf_inscritos').insert([{ nombre: nombre }]);
+
+      if (error) {
+        alert("Error al registrar inscrito: " + error.message);
+      } else {
+        input.value = '';
+        cargarInscritos();
+      }
+    }
+
+    async function eliminarInscrito(id) {
+      const { error } = await db.from('pf_inscritos').delete().eq('id', id);
+      if (!error) cargarInscritos();
+    }
+
+    // LÓGICA DEL SORTEO AUTOMÁTICO
+    async function ejecutarSorteoEquipos() {
+      // 1. Verificación de cantidad exacta
+      if (inscritosLocales.length !== 16) {
+        alert(`❌ ERROR: Se requieren exactamente 16 inscritos para realizar el sorteo. Actualmente hay ${inscritosLocales.length}.`);
+        return;
+      }
+
+      // 2. Primera confirmación
+      const confirmacion1 = confirm("¿Estás seguro de que deseas realizar el sorteo de equipos?");
+      if (!confirmacion1) return;
+
+      // 3. Segunda confirmación
+      const confirmacion2 = confirm("⚠️ ATENCIÓN: Esta acción reemplazará todos los equipos asignados en la pestaña 'Equipos'. ¿Deseas proceder con el sorteo definitivo?");
+      if (!confirmacion2) return;
+
+      // 4. Mezcla aleatoria (Algoritmo Fisher-Yates)
+      let nombresMezclados = inscritosLocales.map(i => i.nombre);
+      for (let i = nombresMezclados.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nombresMezclados[i], nombresMezclados[j]] = [nombresMezclados[j], nombresMezclados[i]];
+      }
+
+      // 5. Asignación a los 16 IDs de equipos con sus grupos (A, B, C, D)
+      const grupos = ['A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'D', 'D', 'D', 'D'];
+
+      for (let i = 0; i < 16; i++) {
+        const idEquipo = i + 1;
+        await db.from('pf_equipos').update({
+          nombre: nombresMezclados[i],
+          grupo: grupos[i]
+        }).eq('id', idEquipo);
+      }
+
+      alert("🎉 ¡Sorteo realizado con éxito! La pestaña 'Equipos' ha sido actualizada.");
+      switchTab('equipos');
     }
     // Validación de Administrador
     function loginAdmin() {
