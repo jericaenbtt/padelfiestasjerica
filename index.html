@@ -89,8 +89,7 @@
     </div>
   </div>
 
-  <script>
-    // Configuración de Supabase
+ // Configuración de Supabase
     const SUPABASE_URL = "https://juqzbczzhwgcmtmtbxcf.supabase.co";
     const SUPABASE_KEY = "sb_publishable_mS2bpHnkMdi1akpwcKvqCw_QePzMeSU";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -113,12 +112,13 @@
     function loginAdmin() {
       const inputPass = document.getElementById('admin-pass').value;
       
-      // La contraseña es Jerica77
       if (inputPass === 'Padel77') {
         esAdmin = true;
         alert("¡Acceso concedido como Administrador!");
         document.getElementById('form-login-admin').classList.add('hidden');
         document.getElementById('panel-admin-activo').classList.remove('hidden');
+        // Recargamos la lista de equipos para que pinten los botones de editar
+        cargarEquipos();
       } else {
         alert("Contraseña incorrecta. Inténtalo de nuevo.");
       }
@@ -130,7 +130,7 @@
       modal.classList.remove('flex');
     }
 
-    // --- CARGAR EQUIPOS DESDE SUPABASE ---
+    // --- CARGAR Y DIBUJAR EQUIPOS ---
     async function cargarEquipos() {
       const grid = document.getElementById('grid-equipos');
       const contador = document.getElementById('contador-equipos');
@@ -152,15 +152,42 @@
 
       contador.textContent = `${equipos.length} / 16 Equipos`;
 
-      grid.innerHTML = equipos.map(eq => `
-        <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="bg-slate-800 hover:bg-slate-700/80 cursor-pointer p-4 rounded-xl border border-slate-700 transition flex flex-col justify-between items-center text-center shadow-md">
-          <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">
-            ${eq.nombre.substring(0, 2).toUpperCase()}
+      grid.innerHTML = equipos.map(eq => {
+        // Genera botón de edición si el modo Admin está activo
+        const botonEditar = esAdmin 
+          ? `<button onclick="event.stopPropagation(); editarEquipo(${eq.id}, '${eq.nombre}')" class="mt-2 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded font-bold transition">✏️ Editar Nombre</button>` 
+          : '';
+
+        return `
+          <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="bg-slate-800 hover:bg-slate-700/80 cursor-pointer p-4 rounded-xl border border-slate-700 transition flex flex-col justify-between items-center text-center shadow-md">
+            <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">
+              ${eq.nombre.substring(0, 2).toUpperCase()}
+            </div>
+            <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
+            <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded">Grupo ${eq.grupo}</span>
+            ${botonEditar}
           </div>
-          <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
-          <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded">Grupo ${eq.grupo}</span>
-        </div>
-      `).join('');
+        `;
+      }).join('');
+    }
+
+    // --- FUNCIÓN PARA EDITAR EQUIPO EN SUPABASE ---
+    async function editarEquipo(id, nombreActual) {
+      const nuevoNombre = prompt("Introduce el nuevo nombre para este equipo:", nombreActual);
+      
+      if (!nuevoNombre || nuevoNombre.trim() === "" || nuevoNombre === nombreActual) return;
+
+      const { error } = await db
+        .from('pf_equipos')
+        .update({ nombre: nuevoNombre.trim() })
+        .eq('id', id);
+
+      if (error) {
+        alert("Error al actualizar el equipo: " + error.message);
+      } else {
+        alert("¡Nombre de equipo actualizado con éxito!");
+        cargarEquipos(); // Refrescar tarjetas en la interfaz
+      }
     }
 
     // Modal de partidos por equipo
@@ -205,6 +232,5 @@
     window.addEventListener('DOMContentLoaded', () => {
       cargarEquipos();
     });
-  </script>
 </body>
 </html>
