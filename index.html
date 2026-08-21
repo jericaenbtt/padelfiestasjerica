@@ -161,6 +161,7 @@
     // Navegación de Pestañas
   // Navegación de Pestañas
 // Actualización de switchTab
+// Navegación de Pestañas
     function switchTab(tab) {
       ['info', 'inscritos', 'equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
         document.getElementById(`sec-${t}`).classList.add('hidden');
@@ -172,6 +173,7 @@
       document.getElementById(`tab-${tab}`).classList.remove('text-slate-400');
 
       if (tab === 'inscritos') cargarInscritos();
+      if (tab === 'equipos') cargarEquipos(); // <- Esta línea actualiza la pantalla al instante
     }
 
     let inscritosLocales = [];
