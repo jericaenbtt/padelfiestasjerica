@@ -68,9 +68,13 @@
     <!-- SECCIÓN ADMIN -->
     <section id="sec-admin" class="hidden space-y-4">
       <h2 class="text-xl font-bold text-red-400">Panel de Administración</h2>
-      <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
+      <div id="form-login-admin" class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
         <input type="password" id="admin-pass" placeholder="Contraseña de administrador" class="w-full p-2 rounded bg-slate-900 border border-slate-700 text-white" />
         <button onclick="loginAdmin()" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded">Acceder</button>
+      </div>
+      <div id="panel-admin-activo" class="hidden bg-slate-800 p-4 rounded-xl border border-emerald-500 space-y-2">
+        <p class="text-emerald-400 font-bold">✅ Sesión iniciada como Administrador</p>
+        <p class="text-xs text-slate-300">Próximamente aquí verás las herramientas para editar marcadores y gestionar equipos.</p>
       </div>
     </section>
 
@@ -91,6 +95,8 @@
     const SUPABASE_KEY = "sb_publishable_mS2bpHnkMdi1akpwcKvqCw_QePzMeSU";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let esAdmin = false;
+
     // Navegación de Pestañas
     function switchTab(tab) {
       ['equipos', 'grupos', 'playoffs', 'admin'].forEach(t => {
@@ -101,6 +107,21 @@
       document.getElementById(`sec-${tab}`).classList.remove('hidden');
       document.getElementById(`tab-${tab}`).classList.add('active-tab');
       document.getElementById(`tab-${tab}`).classList.remove('text-slate-400');
+    }
+
+    // Validación de Administrador
+    function loginAdmin() {
+      const inputPass = document.getElementById('admin-pass').value;
+      
+      // La contraseña es Jerica77
+      if (inputPass === 'Padel77') {
+        esAdmin = true;
+        alert("¡Acceso concedido como Administrador!");
+        document.getElementById('form-login-admin').classList.add('hidden');
+        document.getElementById('panel-admin-activo').classList.remove('hidden');
+      } else {
+        alert("Contraseña incorrecta. Inténtalo de nuevo.");
+      }
     }
 
     function cerrarModal() {
