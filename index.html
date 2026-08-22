@@ -400,187 +400,148 @@
 
     // --- CARGAR Y DIBUJAR EQUIPOS ---
 // --- CARGAR Y DIBUJAR EQUIPOS CON CLASIFICACIÓN ---
-    async function cargarEquipos() {
-      const grid = document.getElementById('grid-equipos');
-      const contador = document.getElementById('contador-equipos');
+// --- CARGAR Y DIBUJAR EQUIPOS CON CLASIFICACIÓN ---
+async function cargarEquipos() {
+  const grid = document.getElementById('grid-equipos');
+  const contador = document.getElementById('contador-equipos');
 
-      const { data: equipos, error } = await db
-        .from('pf_equipos')
-        .select('*')
-        .order('id', { ascending: true });
+  const { data: equipos, error } = await db
+    .from('pf_equipos')
+    .select('*')
+    .order('id', { ascending: true });
 
-      if (error) {
-        if (grid) grid.innerHTML = `<p class="col-span-full text-red-400 text-center py-4">Error al cargar equipos: ${error.message}</p>`;
-        return;
-      }
+  if (error) {
+    if (grid) grid.innerHTML = `<p class="col-span-full text-red-400 text-center py-4">Error al cargar equipos: ${error.message}</p>`;
+    return;
+  }
 
-      if (!equipos || equipos.length === 0) {
-        if (grid) grid.innerHTML = `<p class="col-span-full text-slate-400 text-center py-4">No hay equipos registrados aún.</p>`;
-        return;
-      }
+  if (!equipos || equipos.length === 0) {
+    if (grid) grid.innerHTML = `<p class="col-span-full text-slate-400 text-center py-4">No hay equipos registrados aún.</p>`;
+    return;
+  }
 
-      if (contador) contador.textContent = `${equipos.length} / 8 Equipos`;
+  if (contador) contador.textContent = `${equipos.length} / 8 Equipos`;
 
-      // 1. Calcular estadísticas según marcadores
-      const stats = calcularEstadisticas(equipos);
+  // 1. Calcular estadísticas según marcadores
+  const stats = calcularEstadisticas(equipos);
 
-      // 2. Ordenar equipos aplicando criterios de desempate
-      const eqG1 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 1), stats);
-      const eqG2 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 2), stats);
+  // 2. Ordenar equipos aplicando criterios de desempate
+  const eqG1 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 1), stats);
+  const eqG2 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 2), stats);
 
-      const todosOrdenados = [...eqG1, ...eqG2];
+  const todosOrdenados = [...eqG1, ...eqG2];
 
-      const bgGrupos = {
-        1: 'bg-slate-800 hover:bg-slate-700/80 border-slate-700',
-        2: 'bg-yellow-950/40 hover:bg-yellow-900/50 border-yellow-700/50'
-      };
+  const bgGrupos = {
+    1: 'bg-slate-800 hover:bg-slate-700/80 border-slate-700',
+    2: 'bg-yellow-950/40 hover:bg-yellow-900/50 border-yellow-700/50'
+  };
 
-      if (grid) {
-        grid.innerHTML = todosOrdenados.map(eq => {
-          const s = stats[eq.id] || { pj: 0, pg: 0, jg: 0, jp: 0, pts: 0 };
-          const botonEditar = esAdmin 
-            ? `<button onclick="event.stopPropagation(); editarEquipo(${eq.id}, '${eq.nombre}')" class="mt-2 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded font-bold transition">✏️ Editar</button>` 
-            : '';
+  if (grid) {
+    grid.innerHTML = todosOrdenados.map(eq => {
+      const s = stats[eq.id] || { pj: 0, pg: 0, jg: 0, jp: 0, pts: 0 };
+      const botonEditar = esAdmin 
+        ? `<button onclick="event.stopPropagation(); editarEquipo(${eq.id}, '${eq.nombre}')" class="mt-2 text-xs bg-amber-600 hover:bg-amber-500 text-white py-1 px-2 rounded font-bold transition">✏️ Editar</button>` 
+        : '';
 
-          const avatar = eq.logo 
-            ? `<img src="${eq.logo}" class="w-12 h-12 rounded-full object-cover border border-amber-500 mb-2" />`
-            : `<div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">${eq.nombre.substring(0, 2).toUpperCase()}</div>`;
+      const avatar = eq.logo 
+        ? `<img src="${eq.logo}" class="w-12 h-12 rounded-full object-cover border border-amber-500 mb-2" />`
+        : `<div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg mb-2">${eq.nombre.substring(0, 2).toUpperCase()}</div>`;
 
-          const numGrupo = parseInt(eq.grupo) || 1;
-          const claseFondo = bgGrupos[numGrupo] || bgGrupos[1];
+      const numGrupo = parseInt(eq.grupo) || 1;
+      const claseFondo = bgGrupos[numGrupo] || bgGrupos[1];
 
-          return `
-            <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="${claseFondo} cursor-pointer p-4 rounded-xl border transition flex flex-col justify-between items-center text-center shadow-md">
-              ${avatar}
-              <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
-              <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded mb-2">Grupo ${eq.grupo}</span>
-              
-              <!-- Pastilla de Clasificación -->
-              <div class="w-full grid grid-cols-5 gap-1 bg-slate-900/70 p-2 rounded-lg text-xs border border-slate-700 my-1">
-                <div><span class="text-slate-400 block text-[9px]">PJ</span><b class="text-white">${s.pj}</b></div>
-                <div><span class="text-slate-400 block text-[9px]">PG</span><b class="text-green-400">${s.pg}</b></div>
-                <div><span class="text-slate-400 block text-[9px]">JG</span><b class="text-white">${s.jg}</b></div>
-                <div><span class="text-slate-400 block text-[9px]">JP</span><b class="text-white">${s.jp}</b></div>
-                <div><span class="text-amber-400 block text-[9px]">PTS</span><b class="text-amber-400 font-bold">${s.pts}</b></div>
-              </div>
-
-              ${botonEditar}
-            </div>
-          `;
-        }).join('');
-      }
-
-      renderizarCuadrantes(equipos);
-      renderizarFaseFinal(equipos);
-    }
-// --- FUNCIÓN PARA EDITAR EQUIPO (NOMBRE E IMAGEN) ---
-    async function editarEquipo(id, nombreActual) {
-      // 1. Pedimos el nombre
-      const nuevoNombre = prompt("Nombre del equipo:", nombreActual);
-      if (nuevoNombre === null || nuevoNombre.trim() === "") return;
-
-      // 2. Preguntamos si desea añadir/cambiar foto
-      const cambiarFoto = confirm("¿Quieres cambiar o subir la foto/escudo del equipo?");
-
-      if (!cambiarFoto) {
-        guardarEnSupabase(id, nuevoNombre.trim(), null);
-        return;
-      }
-
-      // 3. Selector universal (Abre fotos/galería/archivos en PC y Móvil)
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*'; // Sin 'capture' para permitir elegir origen
-
-      fileInput.onchange = e => {
-        const file = e.target.files[0];
-        if (!file) {
-          guardarEnSupabase(id, nuevoNombre.trim(), null);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = readerEvent => {
-          const img = new Image();
-          img.onload = () => {
-            // Compresión a máximo 200px
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 200;
-            const scaleFactor = MAX_WIDTH / img.width;
-            canvas.width = MAX_WIDTH;
-            canvas.height = img.height * scaleFactor;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
-
-            guardarEnSupabase(id, nuevoNombre.trim(), fotoComprimida);
-          };
-          img.src = readerEvent.target.result;
-        };
-        reader.readAsDataURL(file);
-      };
-
-      fileInput.click();
-    }
-
-    // --- FUNCIÓN AUXILIAR DE GUARDADO EN SUPABASE ---
-    async function guardarEnSupabase(id, nombre, foto) {
-      const datosAActualizar = { nombre: nombre };
-      if (foto) {
-        datosAActualizar.logo = foto; // Guarda en la columna 'logo' recién creada
-      }
-
-      const { error } = await db
-        .from('pf_equipos')
-        .update(datosAActualizar)
-        .eq('id', id);
-
-      if (error) {
-        alert("Error al actualizar en Supabase: " + error.message);
-      } else {
-        alert("¡Equipo actualizado correctamente!");
-        cargarEquipos();
-      }
-    }
-
-    // Modal de partidos por equipo
-    async function verPartidosEquipo(equipoId, nombreEquipo) {
-      const modal = document.getElementById('modal-equipo');
-      const titulo = document.getElementById('modal-titulo');
-      const contenedorPartidos = document.getElementById('modal-partidos');
-
-      titulo.textContent = `Partidos de ${nombreEquipo}`;
-      contenedorPartidos.innerHTML = `<p class="text-slate-400">Buscando partidos...</p>`;
-      
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-
-      // Buscar partidos del equipo
-      const { data: partidos, error } = await db
-        .from('pf_partidos')
-        .select('*, equipo1:equipo1_id(nombre), equipo2:equipo2_id(nombre)')
-        .or(`equipo1_id.eq.${equipoId},equipo2_id.eq.${equipoId}`);
-
-      if (error || !partidos || partidos.length === 0) {
-        contenedorPartidos.innerHTML = `<p class="text-slate-400 py-2">No hay partidos asignados todavía.</p>`;
-        return;
-      }
-
-      contenedorPartidos.innerHTML = partidos.map(p => `
-        <div class="bg-slate-700/50 p-3 rounded flex justify-between items-center">
-          <div>
-            <p class="font-semibold text-xs text-slate-300 mb-1">${p.equipo1?.nombre} vs ${p.equipo2?.nombre}</p>
-            <span class="text-[10px] text-slate-400 capitalize">${p.fase} ${p.grupo ? '- Gr. ' + p.grupo : ''}</span>
+      return `
+        <div onclick="verPartidosEquipo(${eq.id}, '${eq.nombre}')" class="${claseFondo} cursor-pointer p-4 rounded-xl border transition flex flex-col justify-between items-center text-center shadow-md">
+          ${avatar}
+          <h3 class="font-bold text-white text-base mb-1">${eq.nombre}</h3>
+          <span class="text-xs text-amber-400/90 font-medium bg-amber-500/10 px-2 py-0.5 rounded mb-2">Grupo ${eq.grupo}</span>
+          
+          <!-- Pastilla de Clasificación -->
+          <div class="w-full grid grid-cols-5 gap-1 bg-slate-900/70 p-2 rounded-lg text-xs border border-slate-700 my-1">
+            <div><span class="text-slate-400 block text-[9px]">PJ</span><b class="text-white">${s.pj}</b></div>
+            <div><span class="text-slate-400 block text-[9px]">PG</span><b class="text-green-400">${s.pg}</b></div>
+            <div><span class="text-slate-400 block text-[9px]">JG</span><b class="text-white">${s.jg}</b></div>
+            <div><span class="text-slate-400 block text-[9px]">JP</span><b class="text-white">${s.jp}</b></div>
+            <div><span class="text-amber-400 block text-[9px]">PTS</span><b class="text-amber-400 font-bold">${s.pts}</b></div>
           </div>
-          <div>
-            ${p.completado 
-              ? `<span class="bg-amber-500/20 text-amber-400 font-bold px-2 py-1 rounded text-xs">${p.resultado_e1} - ${p.resultado_e2}</span>` 
-              : `<span class="text-slate-400 text-xs">Pendiente</span>`}
-          </div>
+
+          ${botonEditar}
         </div>
-      `).join('');
+      `;
+    }).join('');
+  }
+
+  renderizarCuadrantes(equipos);
+  renderizarFaseFinal(equipos);
+}
+
+// --- FUNCIÓN PARA EDITAR EQUIPO (NOMBRE E IMAGEN) ---
+async function editarEquipo(id, nombreActual) {
+  const nuevoNombre = prompt("Nombre del equipo:", nombreActual);
+  if (nuevoNombre === null || nuevoNombre.trim() === "") return;
+
+  const cambiarFoto = confirm("¿Quieres cambiar o subir la foto/escudo del equipo?");
+
+  if (!cambiarFoto) {
+    guardarEnSupabase(id, nuevoNombre.trim(), null);
+    return;
+  }
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+
+  fileInput.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) {
+      guardarEnSupabase(id, nuevoNombre.trim(), null);
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = readerEvent => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 200;
+        const scaleFactor = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleFactor;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const fotoComprimida = canvas.toDataURL('image/jpeg', 0.7);
+
+        guardarEnSupabase(id, nuevoNombre.trim(), fotoComprimida);
+      };
+      img.src = readerEvent.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  fileInput.click();
+}
+
+// --- FUNCIÓN AUXILIAR DE GUARDADO EN SUPABASE ---
+async function guardarEnSupabase(id, nombre, foto) {
+  const datosAActualizar = { nombre: nombre };
+  if (foto) {
+    datosAActualizar.logo = foto;
+  }
+
+  const { error } = await db
+    .from('pf_equipos')
+    .update(datosAActualizar)
+    .eq('id', id);
+
+  if (error) {
+    alert("Error al actualizar en Supabase: " + error.message);
+  } else {
+    alert("¡Equipo actualizado correctamente!");
+    cargarEquipos();
+  }
+}
+
 // Matriz de horarios fija según tu cuadrante
 const HORARIOS_MATRIZ = {
   '1-0': '18:00',
@@ -591,7 +552,6 @@ const HORARIOS_MATRIZ = {
   '3-2': '18:30'
 };
 
-// Cargar marcadores guardados en el navegador o iniciar vacíos
 // Cargar marcadores guardados en el navegador
 let resultadosGrupos = JSON.parse(localStorage.getItem('torneo_resultadosGrupos')) || {};
 let resultadosFaseFinal = JSON.parse(localStorage.getItem('torneo_resultadosFaseFinal')) || {};
@@ -692,7 +652,7 @@ function generarTablaCuadrante(tituloPista, listaEquipos, numGrupo) {
   return html;
 }
 
-// Analiza resultados al mejor de 3 sets (ej: "6-4 3-6 6-2" o "2-0" / "2-1")
+// Analiza resultados al mejor de 3 sets
 function obtenerGanadorPerdedorSF(idSF, eqA, eqB) {
   const rdo = resultadosFaseFinal[idSF];
   if (!rdo || rdo.trim() === '' || rdo === '0-0') {
@@ -801,6 +761,7 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
   `;
 }
 
+// Modal de partidos por equipo
 function verPartidosEquipo(idEquipo, nombreEquipo) {
   const modal = document.getElementById('modal-equipo');
   const tituloModal = document.getElementById('modal-titulo');
