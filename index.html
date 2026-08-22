@@ -591,7 +591,24 @@ const HORARIOS_MATRIZ = {
   '3-2': '18:30'
 };
 
-let resultadosGrupos = {};
+// Cargar marcadores guardados en el navegador o iniciar vacíos
+let resultadosGrupos = JSON.parse(localStorage.getItem('torneo_resultadosGrupos')) || {};
+let resultadosFaseFinal = JSON.parse(localStorage.getItem('torneo_resultadosFaseFinal')) || {};
+
+// Guardar resultados de la fase de grupos
+function actualizarResultado(clave, valor) {
+  resultadosGrupos[clave] = valor;
+  localStorage.setItem('torneo_resultadosGrupos', JSON.stringify(resultadosGrupos));
+  cargarEquipos();
+}
+
+// Guardar resultados de la fase final
+function actualizarResultadoFinal(claveMatch, valor) {
+  resultadosFaseFinal[claveMatch] = valor;
+  localStorage.setItem('torneo_resultadosFaseFinal', JSON.stringify(resultadosFaseFinal));
+  const equipos = window.ultimosEquiposCargados || [];
+  renderizarFaseFinal(equipos);
+}
 
 function renderizarCuadrantes(equipos) {
   const contenedor = document.getElementById('cuadrantes-grupos');
@@ -873,14 +890,13 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
   `;
 }
 
-  function verPartidosEquipo(idEquipo, nombreEquipo) {
+ function verPartidosEquipo(idEquipo, nombreEquipo) {
   const modal = document.getElementById('modal-equipo');
-  const tituloModal = document.getElementById('modal-titulo') || document.getElementById('modal-equipo-nombre');
-  const contenidoModal = document.getElementById('modal-contenido') || document.getElementById('modal-equipo-partidos');
+  const tituloModal = document.getElementById('modal-titulo');
+  const contenedorPartidos = document.getElementById('modal-partidos');
 
   if (!modal) return;
 
-  // Actualizar título del modal
   if (tituloModal) tituloModal.textContent = `📅 Partidos de ${nombreEquipo}`;
 
   const equipos = window.ultimosEquiposCargados || [];
@@ -893,42 +909,35 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
 
   if (idxActual === -1) return;
 
-  let htmlPartidos = '<div class="space-y-3 mt-4">';
+  let htmlPartidos = '';
 
-  // Buscar todos los enfrentamientos del equipo en su grupo
   eqGrupo.forEach((rival, idxRival) => {
-    if (idxActual === idxRival) return; // No juega contra sí mismo
+    if (idxActual === idxRival) return;
 
     let i = Math.min(idxActual, idxRival);
     let j = Math.max(idxActual, idxRival);
 
     const claveMatch = `G${numGrupo}_E${i}_E${j}`;
-    const horario = HORARIOS_MATRIZ[`${j}-${i}`] || '--:--';
+    const horario = HORARIOS_MATRIZ[`${j}-${i}`] || HORARIOS_MATRIZ[`${i}-${j}`] || '--:--';
     const rdo = resultadosGrupos[claveMatch] || '0-0';
 
-    const esLocal = idxActual === i;
-    const rivalNombre = rival.nombre;
-
     htmlPartidos += `
-      <div class="flex items-center justify-between bg-slate-800 p-3 rounded-xl border border-slate-700">
+      <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-lg border border-slate-700">
         <div class="flex flex-col">
-          <span class="text-xs text-amber-400 font-bold">vs ${rivalNombre}</span>
-          <span class="text-[10px] text-slate-400">Pista ${numGrupo} • 19 Sept - ${horario}h</span>
+          <span class="text-sm text-amber-400 font-bold">vs ${rival.nombre}</span>
+          <span class="text-xs text-slate-400">Pista ${numGrupo} • 19 Sept - ${horario}h</span>
         </div>
-        <div class="bg-slate-900 px-3 py-1 rounded-lg border border-amber-500/30 font-extrabold text-amber-400 text-sm">
+        <div class="bg-slate-800 px-3 py-1 rounded border border-amber-500/40 font-extrabold text-amber-400 text-sm">
           ${rdo}
         </div>
       </div>
     `;
   });
 
-  htmlPartidos += '</div>';
-
-  if (contenidoModal) {
-    contenidoModal.innerHTML = htmlPartidos;
+  if (contenedorPartidos) {
+    contenedorPartidos.innerHTML = htmlPartidos;
   }
 
-  // Mostrar el modal
   modal.classList.remove('hidden');
   modal.classList.add('flex');
 }
