@@ -592,6 +592,7 @@ const HORARIOS_MATRIZ = {
 };
 
 // Cargar marcadores guardados en el navegador o iniciar vacíos
+// Cargar marcadores guardados en el navegador
 let resultadosGrupos = JSON.parse(localStorage.getItem('torneo_resultadosGrupos')) || {};
 let resultadosFaseFinal = JSON.parse(localStorage.getItem('torneo_resultadosFaseFinal')) || {};
 
@@ -655,7 +656,7 @@ function generarTablaCuadrante(tituloPista, listaEquipos, numGrupo) {
         const claveMatch = `G${numGrupo}_E${i}_E${j}`;
         const valorActual = resultadosGrupos[claveMatch] || '0-0';
 
-        if (esAdmin) {
+        if (typeof esAdmin !== 'undefined' && esAdmin) {
           html += `
             <td class="p-1 border-r border-slate-700 bg-slate-800">
               <input type="text" 
@@ -667,7 +668,7 @@ function generarTablaCuadrante(tituloPista, listaEquipos, numGrupo) {
           html += `<td class="p-2 border-r border-slate-700 font-bold text-amber-400">${valorActual}</td>`;
         }
       } else {
-        const horario = HORARIOS_MATRIZ[`${i}-${j}`] || '--:--';
+        const horario = HORARIOS_MATRIZ[`${i}-${j}`] || HORARIOS_MATRIZ[`${j}-${i}`] || '--:--';
         html += `<td class="p-2 border-r border-slate-700 text-slate-300 font-mono text-xs bg-slate-900/40">${horario}</td>`;
       }
     }
@@ -691,89 +692,6 @@ function generarTablaCuadrante(tituloPista, listaEquipos, numGrupo) {
   return html;
 }
 
-function actualizarResultado(clave, valor) {
-  resultadosGrupos[clave] = valor;
-  cargarEquipos();
-}
-
-  function calcularEstadisticas(equipos) {
-  const stats = {};
-  equipos.forEach(e => {
-    stats[e.id] = { pj: 0, pg: 0, jg: 0, jp: 0, pts: 0, peoresJuegos: [] };
-  });
-
-  Object.keys(resultadosGrupos).forEach(clave => {
-    const val = resultadosGrupos[clave];
-    if (!val || !val.includes('-')) return;
-
-    const partes = val.split('-').map(n => parseInt(n.trim()));
-    if (partes.length !== 2 || isNaN(partes[0]) || isNaN(partes[1])) return;
-
-    const [juegosA, juegosB] = partes;
-    if (juegosA === 0 && juegosB === 0) return;
-
-    const [ , gStr, eIStr, eJStr] = clave.match(/G(\d+)_E(\d+)_E(\d+)/) || [];
-    if (!gStr) return;
-
-    const numGrupo = parseInt(gStr);
-    const idxI = parseInt(eIStr);
-    const idxJ = parseInt(eJStr);
-
-    const eqGrupo = equipos.filter(e => parseInt(e.grupo) === numGrupo);
-    const eqA = eqGrupo[idxI];
-    const eqB = eqGrupo[idxJ];
-
-    if (eqA && eqB) {
-      const sA = stats[eqA.id];
-      const sB = stats[eqB.id];
-
-      sA.pj++; sB.pj++;
-      sA.jg += juegosA; sA.jp += juegosB;
-      sB.jg += juegosB; sB.jp += juegosA;
-
-      sA.peoresJuegos.push(juegosA);
-      sB.peoresJuegos.push(juegosB);
-
-      if (juegosA > juegosB) {
-        sA.pg++; sA.pts += 3;
-        sB.pts += 1;
-      } else if (juegosB > juegosA) {
-        sB.pg++; sB.pts += 3;
-        sA.pts += 1;
-      }
-    }
-  });
-
-  return stats;
-}
-
-function ordenarEquipos(lista, stats) {
-  return lista.sort((a, b) => {
-    const sA = stats[a.id] || { pts:0, jg:0, jp:0, peoresJuegos:[] };
-    const sB = stats[b.id] || { pts:0, jg:0, jp:0, peoresJuegos:[] };
-
-    if (sB.pts !== sA.pts) return sB.pts - sA.pts;
-
-    const difA = sA.jg - sA.jp;
-    const difB = sB.jg - sB.jp;
-    if (difB !== difA) return difB - difA;
-
-    const peorA = sA.peoresJuegos.length > 0 ? Math.min(...sA.peoresJuegos) : 0;
-    const peorB = sB.peoresJuegos.length > 0 ? Math.min(...sB.peoresJuegos) : 0;
-    if (peorB !== peorA) return peorB - peorA;
-
-    return a.nombre.localeCompare(b.nombre);
-  });
-}
-
-let resultadosFaseFinal = {};
-
-function actualizarResultadoFinal(claveMatch, valor) {
-  resultadosFaseFinal[claveMatch] = valor;
-  const equipos = window.ultimosEquiposCargados || [];
-  renderizarFaseFinal(equipos);
-}
-
 // Analiza resultados al mejor de 3 sets (ej: "6-4 3-6 6-2" o "2-0" / "2-1")
 function obtenerGanadorPerdedorSF(idSF, eqA, eqB) {
   const rdo = resultadosFaseFinal[idSF];
@@ -782,7 +700,7 @@ function obtenerGanadorPerdedorSF(idSF, eqA, eqB) {
   }
 
   let setsA = 0, setsB = 0;
-  const bloques = rdo.trim().split(/\s+/); // Separa sets por espacios
+  const bloques = rdo.trim().split(/\s+/);
 
   bloques.forEach(bloque => {
     const partes = bloque.split('-').map(n => parseInt(n.trim()));
@@ -792,7 +710,6 @@ function obtenerGanadorPerdedorSF(idSF, eqA, eqB) {
     }
   });
 
-  // Si se introduce directamente por sets (ej. "2-0" o "2-1")
   if (setsA === 0 && setsB === 0 && bloques.length === 1) {
     const p = bloques[0].split('-').map(n => parseInt(n.trim()));
     if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
@@ -815,7 +732,6 @@ function renderizarFaseFinal(equipos) {
   const contenedor = document.getElementById('cuadro-fase-final');
   if (!contenedor) return;
 
-  // 1. Obtener clasificación de los grupos
   const stats = calcularEstadisticas(equipos);
   const eqG1 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 1), stats);
   const eqG2 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 2), stats);
@@ -825,16 +741,14 @@ function renderizarFaseFinal(equipos) {
   const g2_1 = eqG2[0] || { nombre: '1º Grupo 2', logo: null };
   const g2_2 = eqG2[1] || { nombre: '2º Grupo 2', logo: null };
 
-  // 2. Determinar quién pasa de SF1 y SF2
   const sf1Res = obtenerGanadorPerdedorSF("SF1", g1_1, g2_2);
   const sf2Res = obtenerGanadorPerdedorSF("SF2", g2_1, g1_2);
 
-  // 3. Renderizar Semifinales, 3º-4º Puesto y Gran Final
   contenedor.innerHTML = `
-    ${crearTarjetaMatch("Semifinal 1 (3 Sets)", g1_1, g2_2, "SF1", "Pista 1 - Horario a definir")}
-    ${crearTarjetaMatch("Semifinal 2 (3 Sets)", g2_1, g1_2, "SF2", "Pista 2 - Horario a definir")}
-    ${crearTarjetaMatch("🥉 3º y 4º Puesto", sf1Res.perdedor, sf2Res.perdedor, "TERCER_PUESTO", "Pista 2 - Horario a definir", "border-amber-700/40 bg-slate-900/60")}
-    ${crearTarjetaMatch("🥇 Gran Final", sf1Res.ganador, sf2Res.ganador, "FINAL", "Pista 1 - Horario a definir", "border-amber-500 bg-gradient-to-b from-amber-950/40 to-slate-900 shadow-amber-500/10")}
+    ${crearTarjetaMatch("Semifinal 1 (3 Sets)", g1_1, g2_2, "SF1", "Pista 1 - 21:00h")}
+    ${crearTarjetaMatch("Semifinal 2 (3 Sets)", g2_1, g1_2, "SF2", "Pista 2 - 21:00h")}
+    ${crearTarjetaMatch("🥉 3º y 4º Puesto", sf1Res.perdedor, sf2Res.perdedor, "TERCER_PUESTO", "Pista 2 - 22:00h", "border-amber-700/40 bg-slate-900/60")}
+    ${crearTarjetaMatch("🥇 Gran Final", sf1Res.ganador, sf2Res.ganador, "FINAL", "Pista 1 - 22:00h", "border-amber-500 bg-gradient-to-b from-amber-950/40 to-slate-900 shadow-amber-500/10")}
   `;
 }
 
@@ -849,7 +763,7 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
     ? `<img src="${eqB.logo}" class="w-8 h-8 rounded-full object-cover border border-amber-500" />`
     : `<div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-xs">${(eqB?.nombre || 'EQ').substring(0, 2).toUpperCase()}</div>`;
 
-  const inputOTexto = esAdmin 
+  const inputOTexto = (typeof esAdmin !== 'undefined' && esAdmin)
     ? `<input type="text" value="${rdo}" onchange="actualizarResultadoFinal('${idMatch}', this.value)" class="w-28 text-center bg-slate-900 border border-amber-500/60 text-amber-400 font-extrabold rounded py-1 text-xs focus:outline-none focus:border-amber-400" placeholder="6-4 3-6 6-2" />`
     : `<span class="text-amber-400 font-extrabold text-sm bg-slate-900/80 px-2 py-1 rounded border border-amber-500/30">${rdo}</span>`;
 
@@ -861,7 +775,6 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
       </div>
 
       <div class="space-y-3">
-        <!-- Equipo A -->
         <div class="flex items-center justify-between bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/40">
           <div class="flex items-center gap-3">
             ${avatarA}
@@ -869,7 +782,6 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
           </div>
         </div>
 
-        <!-- VS + Marcador -->
         <div class="flex justify-between items-center px-2">
           <span class="text-xs font-black text-slate-500 uppercase tracking-widest">VS</span>
           <div class="flex items-center gap-2">
@@ -878,7 +790,6 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
           </div>
         </div>
 
-        <!-- Equipo B -->
         <div class="flex items-center justify-between bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/40">
           <div class="flex items-center gap-3">
             ${avatarB}
@@ -890,7 +801,7 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
   `;
 }
 
- function verPartidosEquipo(idEquipo, nombreEquipo) {
+function verPartidosEquipo(idEquipo, nombreEquipo) {
   const modal = document.getElementById('modal-equipo');
   const tituloModal = document.getElementById('modal-titulo');
   const contenedorPartidos = document.getElementById('modal-partidos');
@@ -941,10 +852,11 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
   modal.classList.remove('hidden');
   modal.classList.add('flex');
 }
-    // Inicializar al cargar la página
-    window.addEventListener('DOMContentLoaded', () => {
-      cargarEquipos();
-    });
-  </script>
+
+// Inicializar al cargar la página
+window.addEventListener('DOMContentLoaded', () => {
+  cargarEquipos();
+});
+</script>
 </body>
 </html>
