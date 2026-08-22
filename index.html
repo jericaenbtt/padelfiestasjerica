@@ -46,7 +46,7 @@
         <div class="border-t border-slate-700 pt-3 space-y-2">
           <h3 class="text-amber-400 font-bold text-sm">📋 Formato y Reglas Básicas</h3>
           <ul class="list-disc list-inside text-xs space-y-1.5 text-slate-300">
-            <li><strong>Equipos:</strong> Torneo compuesto por 16 parejas/equipos.</li>
+            <li><strong>Equipos:</strong> Torneo compuesto por 8 parejas/equipos.</li>
             <li><strong>Fase de Grupos:</strong> Divididos en grupos donde jugarán todos contra todos.</li>
             <li><strong>Fase Final:</strong> Los mejores clasificados de cada grupo pasarán al cuadro de eliminatorias (Playoffs).</li>
           </ul>
@@ -63,7 +63,7 @@
     <section id="sec-inscritos" class="hidden space-y-4">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-xl font-bold text-amber-400">Lista de Inscritos</h2>
-        <span id="contador-inscritos" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">0 / 16 Inscritos</span>
+        <span id="contador-inscritos" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">0 / 8 Inscritos</span>
       </div>
 
       <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-4">
@@ -97,7 +97,7 @@
     <section id="sec-equipos" class="space-y-4">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-xl font-bold text-amber-400">Configuración grupos tras sorteo</h2>
-        <span id="contador-equipos" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">0 / 16 Equipos</span>
+        <span id="contador-equipos" class="text-xs bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-slate-300">0 / 8 Equipos</span>
       </div>
       
       <div id="grid-equipos" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -205,7 +205,7 @@
       }
 
       inscritosLocales = data || [];
-      contador.textContent = `${inscritosLocales.length} / 16 Inscritos`;
+      contador.textContent = `${inscritosLocales.length} / 8 Inscritos`;
 
       if (inscritosLocales.length === 0) {
         lista.innerHTML = `<li class="py-2 text-slate-400 text-center">No hay equipos inscritos aún.</li>`;
@@ -243,8 +243,8 @@
         return;
       }
 
-      if (inscritosLocales.length >= 16) {
-        alert("Ya se ha alcanzado el límite máximo de 16 inscritos.");
+      if (inscritosLocales.length >= 8) {
+        alert("Ya se ha alcanzado el límite máximo de 8 inscritos.");
         return;
       }
 
@@ -396,7 +396,7 @@
         return;
       }
 
-      contador.textContent = `${equipos.length} / 16 Equipos`;
+      contador.textContent = `${equipos.length} / 8 Equipos`;
 
 grid.innerHTML = equipos.map(eq => {
         const botonEditar = esAdmin 
