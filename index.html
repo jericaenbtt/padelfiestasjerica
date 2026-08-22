@@ -114,6 +114,18 @@
           <!-- Aquí se generarán dinámicamente las tablas de la Pista 1 y Pista 2 -->
         </div>
       </div>
+
+      <!-- Sección de Fase Final (Eliminatorias) -->
+      <div class="mt-16 space-y-8">
+        <div class="text-center">
+          <h2 class="text-3xl font-extrabold text-amber-400 tracking-wide uppercase">🏆 Fase Final - Eliminatorias</h2>
+          <p class="text-sm text-slate-400 mt-1">Cruces automáticos según la clasificación de los grupos</p>
+        </div>
+
+        <div id="cuadro-fase-final" class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          <!-- Se generará dinámicamente con JS -->
+        </div>
+      </div>
     </section>
 
     <!-- SECCIÓN GRUPOS -->
@@ -459,6 +471,7 @@
       }
 
       renderizarCuadrantes(equipos);
+      renderizarFaseFinal(equipos);
     }
 // --- FUNCIÓN PARA EDITAR EQUIPO (NOMBRE E IMAGEN) ---
     async function editarEquipo(id, nombreActual) {
@@ -663,6 +676,7 @@ function generarTablaCuadrante(tituloPista, listaEquipos, numGrupo) {
 
 function actualizarResultado(clave, valor) {
   resultadosGrupos[clave] = valor;
+  cargarEquipos();
 }
 
   function calcularEstadisticas(equipos) {
@@ -733,6 +747,91 @@ function ordenarEquipos(lista, stats) {
 
     return a.nombre.localeCompare(b.nombre);
   });
+}
+
+  let resultadosFaseFinal = {};
+
+function actualizarResultadoFinal(claveMatch, valor) {
+  resultadosFaseFinal[claveMatch] = valor;
+  const equipos = window.ultimosEquiposCargados || [];
+  renderizarFaseFinal(equipos);
+}
+
+function renderizarFaseFinal(equipos) {
+  window.ultimosEquiposCargados = equipos;
+  const contenedor = document.getElementById('cuadro-fase-final');
+  if (!contenedor) return;
+
+  // 1. Obtener clasificación de grupos
+  const stats = calcularEstadisticas(equipos);
+  const eqG1 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 1), stats);
+  const eqG2 = ordenarEquipos(equipos.filter(e => parseInt(e.grupo) === 2), stats);
+
+  // 2. Definir cruces (1º vs 2º)
+  const g1_1 = eqG1[0] || { nombre: '1º Grupo 1', logo: null };
+  const g1_2 = eqG1[1] || { nombre: '2º Grupo 1', logo: null };
+  const g2_1 = eqG2[0] || { nombre: '1º Grupo 2', logo: null };
+  const g2_2 = eqG2[1] || { nombre: '2º Grupo 2', logo: null };
+
+  // 3. Dibujar tarjetas de Semifinales, 3º-4º Puesto y Final
+  contenedor.innerHTML = `
+    ${crearTarjetaMatch("Semifinal 1", g1_1, g2_2, "SF1", "Pista 1 - 21:00h")}
+    ${crearTarjetaMatch("Semifinal 2", g2_1, g1_2, "SF2", "Pista 2 - 21:00h")}
+    ${crearTarjetaMatch("🥉 3º y 4º Puesto", { nombre: "Perdedor SF1" }, { nombre: "Perdedor SF2" }, "TERCER_PUESTO", "Pista 2 - 22:00h", "border-amber-700/40 bg-slate-900/60")}
+    ${crearTarjetaMatch("🥇 Gran Final", { nombre: "Ganador SF1" }, { nombre: "Ganador SF2" }, "FINAL", "Pista 1 - 22:00h", "border-amber-500 bg-gradient-to-b from-amber-950/40 to-slate-900 shadow-amber-500/10")}
+  `;
+}
+
+function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "border-slate-700 bg-slate-800/90") {
+  const rdo = resultadosFaseFinal[idMatch] || '0-0';
+
+  const avatarA = eqA.logo 
+    ? `<img src="${eqA.logo}" class="w-8 h-8 rounded-full object-cover border border-amber-500" />`
+    : `<div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-xs">${eqA.nombre.substring(0, 2).toUpperCase()}</div>`;
+
+  const avatarB = eqB.logo 
+    ? `<img src="${eqB.logo}" class="w-8 h-8 rounded-full object-cover border border-amber-500" />`
+    : `<div class="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-xs">${eqB.nombre.substring(0, 2).toUpperCase()}</div>`;
+
+  const inputOTexto = esAdmin 
+    ? `<input type="text" value="${rdo}" onchange="actualizarResultadoFinal('${idMatch}', this.value)" class="w-16 text-center bg-slate-900 border border-amber-500/60 text-amber-400 font-extrabold rounded py-1 text-sm focus:outline-none focus:border-amber-400" placeholder="0-0" />`
+    : `<span class="text-amber-400 font-extrabold text-base bg-slate-900/80 px-3 py-1 rounded border border-amber-500/30">${rdo}</span>`;
+
+  return `
+    <div class="border rounded-2xl p-5 shadow-xl transition hover:border-amber-400/50 flex flex-col justify-between ${estiloExtra}">
+      <div class="flex justify-between items-center mb-4 border-b border-slate-700/60 pb-2">
+        <span class="font-bold text-amber-400 text-sm">${titulo}</span>
+        <span class="text-xs font-mono text-slate-400 bg-slate-900/60 px-2 py-0.5 rounded border border-slate-700">${horario}</span>
+      </div>
+
+      <div class="space-y-3">
+        <!-- Equipo A -->
+        <div class="flex items-center justify-between bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/40">
+          <div class="flex items-center gap-3">
+            ${avatarA}
+            <span class="font-bold text-white text-sm">${eqA.nombre}</span>
+          </div>
+        </div>
+
+        <!-- VS + Marcador -->
+        <div class="flex justify-between items-center px-2">
+          <span class="text-xs font-black text-slate-500 uppercase tracking-widest">VS</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-slate-400 font-medium">RDO:</span>
+            ${inputOTexto}
+          </div>
+        </div>
+
+        <!-- Equipo B -->
+        <div class="flex items-center justify-between bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/40">
+          <div class="flex items-center gap-3">
+            ${avatarB}
+            <span class="font-bold text-white text-sm">${eqB.nombre}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
     // Inicializar al cargar la página
     window.addEventListener('DOMContentLoaded', () => {
