@@ -872,6 +872,66 @@ function crearTarjetaMatch(titulo, eqA, eqB, idMatch, horario, estiloExtra = "bo
     </div>
   `;
 }
+
+  function verPartidosEquipo(idEquipo, nombreEquipo) {
+  const modal = document.getElementById('modal-equipo');
+  const tituloModal = document.getElementById('modal-titulo') || document.getElementById('modal-equipo-nombre');
+  const contenidoModal = document.getElementById('modal-contenido') || document.getElementById('modal-equipo-partidos');
+
+  if (!modal) return;
+
+  // Actualizar título del modal
+  if (tituloModal) tituloModal.textContent = `📅 Partidos de ${nombreEquipo}`;
+
+  const equipos = window.ultimosEquiposCargados || [];
+  const eqActual = equipos.find(e => e.id === idEquipo);
+  if (!eqActual) return;
+
+  const numGrupo = parseInt(eqActual.grupo) || 1;
+  const eqGrupo = equipos.filter(e => parseInt(e.grupo) === numGrupo);
+  const idxActual = eqGrupo.findIndex(e => e.id === idEquipo);
+
+  if (idxActual === -1) return;
+
+  let htmlPartidos = '<div class="space-y-3 mt-4">';
+
+  // Buscar todos los enfrentamientos del equipo en su grupo
+  eqGrupo.forEach((rival, idxRival) => {
+    if (idxActual === idxRival) return; // No juega contra sí mismo
+
+    let i = Math.min(idxActual, idxRival);
+    let j = Math.max(idxActual, idxRival);
+
+    const claveMatch = `G${numGrupo}_E${i}_E${j}`;
+    const horario = HORARIOS_MATRIZ[`${j}-${i}`] || '--:--';
+    const rdo = resultadosGrupos[claveMatch] || '0-0';
+
+    const esLocal = idxActual === i;
+    const rivalNombre = rival.nombre;
+
+    htmlPartidos += `
+      <div class="flex items-center justify-between bg-slate-800 p-3 rounded-xl border border-slate-700">
+        <div class="flex flex-col">
+          <span class="text-xs text-amber-400 font-bold">vs ${rivalNombre}</span>
+          <span class="text-[10px] text-slate-400">Pista ${numGrupo} • 19 Sept - ${horario}h</span>
+        </div>
+        <div class="bg-slate-900 px-3 py-1 rounded-lg border border-amber-500/30 font-extrabold text-amber-400 text-sm">
+          ${rdo}
+        </div>
+      </div>
+    `;
+  });
+
+  htmlPartidos += '</div>';
+
+  if (contenidoModal) {
+    contenidoModal.innerHTML = htmlPartidos;
+  }
+
+  // Mostrar el modal
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
     // Inicializar al cargar la página
     window.addEventListener('DOMContentLoaded', () => {
       cargarEquipos();
